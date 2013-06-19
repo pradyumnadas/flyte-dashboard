@@ -28,7 +28,7 @@ public class ParseObjectProcessor {
         if (targetObj.getType() == ParseObject.ParseType.CRASHDUMP) {
             processedOutput.add(generateStacktrace(targetObj));
         } else if (targetObj.getType() == ParseObject.ParseType.BUG) {
-            for(File f : extractBugInfo(targetObj)) {
+            for (File f : extractBugInfo(targetObj)) {
                 processedOutput.add(f);
             }
         } else if (targetObj.getType() == ParseObject.ParseType.FEEDBACK) {
@@ -58,7 +58,7 @@ public class ParseObjectProcessor {
             if (minidump_stacktwalk.exitValue() == 0) {
                 stacktraceReader = new BufferedReader(new InputStreamReader(minidump_stacktwalk.getInputStream()));
                 stacktraceWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(stacktraceFile)));
-                
+
                 String temp;
 
                 do {
@@ -79,36 +79,62 @@ public class ParseObjectProcessor {
 
     private static File getDescription(ParseObject targetObj) {
         File description;
-        String filePath = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator +
-                targetObj.getName();
-        
+        String filePath = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator
+                + targetObj.getName();
+
         ZipInputStream fileZIS;
         BufferedWriter descriptionWriter;
         ZipEntry entry;
-        try{
+        try {
             description = File.createTempFile("flyte", "desc");
             descriptionWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(description)));
             fileZIS = new ZipInputStream(new FileInputStream(filePath));
-            while((entry = fileZIS.getNextEntry()) != null) {
-                if(entry.getName().equals("description.txt")){
+            while ((entry = fileZIS.getNextEntry()) != null) {
+                if (entry.getName().equals("description.txt")) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(fileZIS));
                     String temp;
-                    while((temp = br.readLine()) != null) {
+                    while ((temp = br.readLine()) != null) {
                         descriptionWriter.write(temp);
                     }
                 }
             }
-        }catch(FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             description = null;
-        }catch(IOException e) {
+        } catch (IOException e) {
             description = null;
         }
-        
+
         return description;
     }
 
     private static File[] extractBugInfo(ParseObject targetObj) {
         File[] outputFiles = new File[3];
+
+        String filePath = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator
+                + targetObj.getName();
+
+        ZipInputStream fileZIS;
+        BufferedWriter descriptionWriter;
+        ZipEntry entry;
+        try {
+            fileZIS = new ZipInputStream(new FileInputStream(filePath));
+            int i = 0;
+            while ((entry = fileZIS.getNextEntry()) != null) {
+                outputFiles[i] = File.createTempFile("flyte", "");
+                BufferedReader br = new BufferedReader(new InputStreamReader(fileZIS));
+                descriptionWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFiles[i])));
+                String temp;
+                while ((temp = br.readLine()) != null) {
+                    descriptionWriter.write(temp);
+                }
+                ++i;
+            }
+        } catch (FileNotFoundException e) {
+            outputFiles = null;
+        } catch (IOException e) {
+            outputFiles = null;
+        }
+
         return outputFiles;
     }
 }

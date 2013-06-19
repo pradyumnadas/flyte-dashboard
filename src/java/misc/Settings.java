@@ -22,7 +22,7 @@ public class Settings {
     
     private Settings() {
         prop = new Properties();
-        propFilePath = "/home/pradyumnadas/NetBeansProjects/CrashDumpDashboard/src/java/Resources/Settings.properties";
+        propFilePath = "/home/pradyumnadas/CrashDumpDashboard/src/java/resources/Settings.properties";
     }
     
     public static Settings getInstance() {

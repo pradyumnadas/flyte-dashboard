@@ -12,9 +12,8 @@
         <title>JSP Page</title>
     </head>
     <body>
-        <h1>Loading...</h1>
-        <%
-            
-        %>
+        <form method="POST" action="DownloadServlet">
+            <input type="submit">
+        </form>
     </body>
 </html>
