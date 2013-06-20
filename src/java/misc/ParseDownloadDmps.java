@@ -5,7 +5,6 @@
 package misc;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,15 +14,15 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.LinkedList;
-import java.util.Observable;
 
 /**
  *
  * @author pradyumnadas
  */
-public class ParseDownloadDmps extends Observable implements Runnable {
+public class ParseDownloadDmps implements Runnable {
 
     public enum DownloadState {
 
@@ -35,8 +34,9 @@ public class ParseDownloadDmps extends Observable implements Runnable {
     final static String PARSE_REST_API_KEY = "3Sklxck6rsjXTSQbWns97EPlQXwvPnE1kHnErHVb";
     final static String API_VER = "1";
     final static String API_BASE_URL = "https://api.parse.com";
+    final static int LIMIT = 100;      //this gives the number of objects that is returned by a single call to the parse rest api. 1000 is the max
     String classname;
-    URL downloadUrl;
+    String downloadUrl;
     Thread th;
     ParseObject.ParseType type;
     DownloadState currentState;
@@ -44,21 +44,14 @@ public class ParseDownloadDmps extends Observable implements Runnable {
     public void setCurrentState(DownloadState currentState) {
         if (this.currentState != currentState) {
             this.currentState = currentState;
-            notifyObservers(currentState);
         }
     }
 
     public ParseDownloadDmps(ParseObject.ParseType type) {
         classname = Settings.getInstance().getParseObjectClassName(type);
-
-        try {
-            downloadUrl = new URL(String.format("%s/%s/classes/%s", API_BASE_URL, API_VER, classname));
-        } catch (MalformedURLException ex) {
-            downloadUrl = null;
-        }
-
+        downloadUrl = String.format("%s/%s/classes/%s", API_BASE_URL, API_VER, classname);
         this.type = type;
-        th = new Thread(this, "DownloadDumpsThread");
+        th = new Thread(this, "DownloadFilesThread");
     }
 
     public void startDownload() {
@@ -68,41 +61,54 @@ public class ParseDownloadDmps extends Observable implements Runnable {
     @Override
     public void run() {
         setCurrentState(DownloadState.DOWNLOADING);
-        try {
-            if (downloadUrl != null) {
-                HttpURLConnection connection = (HttpURLConnection) downloadUrl.openConnection();
-                connection.setRequestMethod("GET");
-                connection.setRequestProperty("X-Parse-Application-Id", PARSE_APP_ID);
-                connection.setRequestProperty("X-Parse-REST-API-Key", PARSE_REST_API_KEY);
+        LinkedList<ParseObject> parseObjs = new LinkedList<ParseObject>();
+        int skipBy = 0;
+        boolean fetchNextObjs = false;
+        String ts = Settings.getInstance().getLatestObjTimeStamp(type);
+        String constraint = null;
 
-                String ts = Settings.getInstance().getLatestObjTimeStamp(type);
-
-//                if(ts != null) {
-//                    String constraint = URLEncoder.encode("where={\"createdAt\":{\"$gte\":{\"__type\":\"Date\",\"iso\":\"" + ts + "\"}}}");
-//                    
-//                    connection.setRequestProperty("Content-Length", Integer.toString(constraint.length()));
-//                    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-//                    
-//                    OutputStream contentStream = connection.getOutputStream();
-//                    contentStream.write(constraint.getBytes());
-//                }
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String line, json = "";
-                while ((line = br.readLine()) != null) {
-                    json += line;
-                }
-                LinkedList<ParseObject> parseObjs = JsonParser.getParseObjectsFromJSON(json, type);
-                for (ParseObject obj : parseObjs) {
-                    downloadFile(obj);
-                }
-
-                //updateLatestObjectTimestamp(parseObjs);
-            }
-        } catch (MalformedURLException e) {
-        } catch (IOException e) {
+        if (ts != null) {
+            constraint = URLEncoder.encode("where={\"createdAt\":{\"$gte\":{\"__type\":\"Date\",\"iso\":\"" + ts + "\"}}}");
         }
         
+        try {
+            do {
+                URL url = createDownloadURL(skipBy, constraint);
+
+                if (url != null) {
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setRequestProperty("X-Parse-Application-Id", PARSE_APP_ID);
+                    connection.setRequestProperty("X-Parse-REST-API-Key", PARSE_REST_API_KEY);
+
+                    BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                    String line, json = "";
+                    while ((line = br.readLine()) != null) {
+                        json += line;
+                    }
+                    LinkedList<ParseObject> currentList = JsonParser.getParseObjectsFromJSON(json, type);
+
+                    if (currentList.size() == LIMIT) {
+                        fetchNextObjs = true;
+                        skipBy += LIMIT;
+                    } else {
+                        fetchNextObjs = false;
+                    }
+
+                    parseObjs.addAll(currentList);
+                }
+
+
+            } while (fetchNextObjs);
+
+            for (ParseObject obj : parseObjs) {
+                downloadFile(obj);
+            }
+
+            updateLatestObjectTimestamp(parseObjs);
+        } catch (IOException e) {
+        }
+
         setCurrentState(DownloadState.DOWNLOAD_COMPLETED);
     }
 
@@ -146,8 +152,28 @@ public class ParseDownloadDmps extends Observable implements Runnable {
         }
 
         String iso8601_date;
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH':'mm':'ss.SSS'Z'");
         iso8601_date = formatter.format(latestObj.getCreatedTime().getTime());
         Settings.getInstance().setLatestObjTimeStamp(type, iso8601_date);
+    }
+
+    private URL createDownloadURL(int skip, String constraints) {
+        URL url = null;
+        String finalurl;
+                
+        if (constraints != null) {
+            finalurl = String.format("%s?%s&limit=%s&skip=%s", downloadUrl, constraints,
+                    (new Integer(LIMIT)).toString(), (new Integer(skip)).toString());
+        } else {
+            finalurl = String.format("%s?limit=%s&skip=%s", downloadUrl,
+                    (new Integer(LIMIT)).toString(), (new Integer(skip)).toString());
+        }
+
+        try {
+            url = new URL(finalurl);
+        } catch (MalformedURLException e) {
+        }
+        
+        return url;
     }
 }
