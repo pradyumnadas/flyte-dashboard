@@ -4,6 +4,7 @@
  */
 package misc;
 
+import DB.DatabaseManager;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -54,6 +55,13 @@ public class ParseDownloadDmps implements Runnable {
         th = new Thread(this, "DownloadFilesThread");
     }
 
+    public void waitForDownloadCompletion() {
+        try {
+            th.join();
+        } catch (InterruptedException ex) {
+        }
+    }
+
     public void startDownload() {
         th.start();
     }
@@ -70,7 +78,7 @@ public class ParseDownloadDmps implements Runnable {
         if (ts != null) {
             constraint = URLEncoder.encode("where={\"createdAt\":{\"$gte\":{\"__type\":\"Date\",\"iso\":\"" + ts + "\"}}}");
         }
-        
+
         try {
             do {
                 URL url = createDownloadURL(skipBy, constraint);
@@ -109,6 +117,7 @@ public class ParseDownloadDmps implements Runnable {
         } catch (IOException e) {
         }
 
+        DatabaseManager.getInstance().saveAllObjects(parseObjs);
         setCurrentState(DownloadState.DOWNLOAD_COMPLETED);
     }
 
@@ -117,7 +126,6 @@ public class ParseDownloadDmps implements Runnable {
             URL crashFileDownloadUrl = new URL(obj.getUrl());
             FileOutputStream crashFileos = null;
             File destinationFolder = new File(Settings.getInstance().getParseFileDownloadDirectory(type));
-            File destinationFile = new File(destinationFolder.getAbsolutePath() + File.separator + obj.getName());
 
             if (!destinationFolder.exists()) {
                 if (!destinationFolder.mkdirs()) {
@@ -126,7 +134,7 @@ public class ParseDownloadDmps implements Runnable {
             }
 
             try {
-                crashFileos = new FileOutputStream(destinationFile, true);
+                crashFileos = new FileOutputStream(obj.getFile(), true);
             } catch (FileNotFoundException ex) {
                 return;
             }
@@ -160,7 +168,7 @@ public class ParseDownloadDmps implements Runnable {
     private URL createDownloadURL(int skip, String constraints) {
         URL url = null;
         String finalurl;
-                
+
         if (constraints != null) {
             finalurl = String.format("%s?%s&limit=%s&skip=%s", downloadUrl, constraints,
                     (new Integer(LIMIT)).toString(), (new Integer(skip)).toString());
@@ -173,7 +181,7 @@ public class ParseDownloadDmps implements Runnable {
             url = new URL(finalurl);
         } catch (MalformedURLException e) {
         }
-        
+
         return url;
     }
 }

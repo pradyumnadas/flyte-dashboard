@@ -30,10 +30,11 @@ public class DownloadServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
-        ParseDownloadDmps downloadThread = new ParseDownloadDmps(ParseObject.ParseType.CRASHDUMP);
+
+        ParseDownloadDmps downloadThread = new ParseDownloadDmps(ParseObject.ParseType.FEEDBACK);
         downloadThread.startDownload();
-        response.sendRedirect("donedownloading.html");
+        downloadThread.waitForDownloadCompletion();
+        response.sendRedirect("mainpage.jsp");
     }
 
     @Override

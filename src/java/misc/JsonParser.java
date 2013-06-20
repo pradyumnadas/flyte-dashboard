@@ -8,6 +8,7 @@ import argo.jdom.JdomParser;
 import argo.jdom.JsonNode;
 import argo.jdom.JsonRootNode;
 import argo.saj.InvalidSyntaxException;
+import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -25,7 +26,7 @@ public class JsonParser {
         try {
             JsonRootNode jsonroot = JDOM_PARSER.parse(json);
             List<JsonNode> objList = jsonroot.getArrayNode("results");
-            for(JsonNode node : objList) {
+            for (JsonNode node : objList) {
                 parseObjList.add(readObject(node, type));
             }
         } catch (InvalidSyntaxException ex) {
@@ -43,21 +44,9 @@ public class JsonParser {
         String name = node.getStringValue("name");
         String url = node.getStringValue("url");
         String createdAt = node.getStringValue("createdAt");
-        int y = 0, m = 0, d = 0, h = 0, min = 0, s = 0;
+        GregorianCalendar calendar = Utility.convertISO8601StringToGregorianCalendar(createdAt);
 
-        String[] datetime = createdAt.split("T");
-        String[] date = datetime[0].split("-");
-        y = new Integer(date[0]);
-        m = new Integer(date[1]);
-        d = new Integer(date[2]);
-        String[] time = datetime[1].split(":");
-        h = new Integer(time[0]);
-        min = new Integer(time[1]);
-        s = new Integer(time[2].substring(0, 2));
-
-
-        ParseObject prsobj = new ParseObject(type, OS, objectId, userId, version, name, url, null);
-        prsobj.setCreationTime(y, m, d, h, min, s);
+        ParseObject prsobj = new ParseObject(type, OS, objectId, userId, version, name, url, calendar);
         return prsobj;
     }
 }
