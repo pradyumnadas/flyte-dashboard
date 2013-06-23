@@ -23,8 +23,8 @@ import java.util.zip.ZipInputStream;
  */
 public class ParseObjectProcessor {
 
-    public static ArrayList<File> processObject(ParseObject targetObj) {
-        ArrayList<File> processedOutput = new ArrayList<File>();
+    public static ArrayList<Object> processObject(ParseObject targetObj) {
+        ArrayList<Object> processedOutput = new ArrayList<Object>();
         if (targetObj.getType() == ParseObject.ParseType.CRASHDUMP) {
             processedOutput.add(generateStacktrace(targetObj));
         } else if (targetObj.getType() == ParseObject.ParseType.BUG) {
@@ -39,12 +39,11 @@ public class ParseObjectProcessor {
         return processedOutput;
     }
 
-    private static File generateStacktrace(ParseObject targetObj) {
-        File stacktraceFile;
+    private static String generateStacktrace(ParseObject targetObj) {
         Process minidump_stacktwalk;
         String[] cmdArray = new String[3];
         BufferedReader stacktraceReader;
-        BufferedWriter stacktraceWriter;
+        StringBuilder stacktrace = new StringBuilder();
 
         cmdArray[0] = "/home/pradyumnadas/google-breakpad/src/processor/minidump_stackwalk";
         cmdArray[1] = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator
@@ -52,59 +51,52 @@ public class ParseObjectProcessor {
         cmdArray[2] = Settings.getInstance().getSymbolFileDirectory() + File.separator
                 + targetObj.getVersion() + File.separator + targetObj.getOS() + File.separator + "symbols";
         try {
-            stacktraceFile = File.createTempFile("flyte", "stacktrace");
             minidump_stacktwalk = Runtime.getRuntime().exec(cmdArray);
 
             if (minidump_stacktwalk.exitValue() == 0) {
                 stacktraceReader = new BufferedReader(new InputStreamReader(minidump_stacktwalk.getInputStream()));
-                stacktraceWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(stacktraceFile)));
 
                 String temp;
 
                 do {
                     temp = stacktraceReader.readLine();
                     if (temp != null) {
-                        stacktraceWriter.write(temp);
+                        stacktrace.append(temp);
+                        stacktrace.append("\n");
                     }
                 } while (temp != null);
 
                 stacktraceReader.close();
-                stacktraceWriter.close();
             }
         } catch (IOException ex) {
-            stacktraceFile = null;
         }
-        return stacktraceFile;
+        return stacktrace.toString();
     }
 
-    private static File getDescription(ParseObject targetObj) {
-        File description;
+    private static String getDescription(ParseObject targetObj) {
+        StringBuilder description = new StringBuilder();
         String filePath = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator
                 + targetObj.getName();
 
         ZipInputStream fileZIS;
-        BufferedWriter descriptionWriter;
         ZipEntry entry;
         try {
-            description = File.createTempFile("flyte", "desc");
-            descriptionWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(description)));
             fileZIS = new ZipInputStream(new FileInputStream(filePath));
             while ((entry = fileZIS.getNextEntry()) != null) {
                 if (entry.getName().equals("description.txt")) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(fileZIS));
                     String temp;
                     while ((temp = br.readLine()) != null) {
-                        descriptionWriter.write(temp);
+                        description.append(temp);
+                        description.append("\n");
                     }
                 }
             }
         } catch (FileNotFoundException e) {
-            description = null;
         } catch (IOException e) {
-            description = null;
         }
 
-        return description;
+        return description.toString();
     }
 
     private static File[] extractBugInfo(ParseObject targetObj) {

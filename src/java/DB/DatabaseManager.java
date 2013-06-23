@@ -10,6 +10,7 @@ package DB;
  */
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -22,16 +23,20 @@ public class DatabaseManager {
 
     static DatabaseManager dbm = null;
     Connection connection;
-    Statement stmt;
     ResultSet rs;
     final String TABLENAME = "UserData";
+    PreparedStatement pst_Insert;
+    PreparedStatement pst_SelectAll;
+    PreparedStatement pst_Select;
 
     private DatabaseManager() {
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection("jdbc:sqlite:FlipkartDashboard.db");
-            stmt = connection.createStatement();
             initialise();
+            pst_Insert = connection.prepareStatement("insert into " + TABLENAME + " values(?,?,?,?,?,?,?,?)");
+            pst_Select = connection.prepareStatement("select * from " + TABLENAME + " where object_id=?");
+            pst_SelectAll = connection.prepareStatement("select * from " + TABLENAME + " where type=?");
         } catch (SQLException ex) {
             System.out.println("SQLException");
         } catch (ClassNotFoundException ex) {
@@ -48,6 +53,7 @@ public class DatabaseManager {
     }
 
     private void initialise() throws SQLException {
+        Statement stmt = connection.createStatement();
         stmt.executeUpdate("create table if not exists " + TABLENAME
                 + "("
                 + "object_id   varchar(50) primary key,"
@@ -101,11 +107,16 @@ public class DatabaseManager {
 
     public boolean saveObject(ParseObject obj) {
         boolean outcome;
-        String query = String.format("insert into %s values('%s','%s','%s','%s','%s','%s','%s',%d)", TABLENAME, obj.getObjectId(),
-                obj.getOS(), obj.getUserId(), obj.getVersion(), obj.getName(), obj.getUrl(),
-                obj.getCreationTimeAsISO8601String(), translateObjectTypeToInt(obj.getType()));
         try {
-            outcome = (stmt.executeUpdate(query) != 1) ? false : true;
+            pst_Insert.setString(1, obj.getObjectId());
+            pst_Insert.setString(2, obj.getOS());
+            pst_Insert.setString(3, obj.getUserId());
+            pst_Insert.setString(4, obj.getVersion());
+            pst_Insert.setString(5, obj.getName());
+            pst_Insert.setString(6, obj.getUrl());
+            pst_Insert.setString(7, obj.getCreationTimeAsISO8601String());
+            pst_Insert.setInt(8, translateObjectTypeToInt(obj.getType()));
+            outcome = (pst_Insert.executeUpdate() != 1) ? false : true;
         } catch (SQLException e) {
             outcome = false;
         }
@@ -113,15 +124,16 @@ public class DatabaseManager {
         return outcome;
     }
 
-    public LinkedList<ParseObject> readAllObjects() {
+    public LinkedList<ParseObject> readAllObjects(ParseObject.ParseType selectType) {
         LinkedList<ParseObject> objs = new LinkedList<ParseObject>();
         try {
-            rs = stmt.executeQuery("select * from " + TABLENAME);
+            pst_SelectAll.setInt(1, translateObjectTypeToInt(selectType));
+            rs = pst_SelectAll.executeQuery();
             String[] vals;
             while (rs.next()) {
                 vals = new String[7];
                 for (int i = 1; i <= vals.length; i++) {
-                    vals[i] = rs.getString(i);
+                    vals[i - 1] = rs.getString(i);
                 }
                 ParseObject.ParseType type = translateIntToObjectType(rs.getInt(8));
                 objs.add(new ParseObject(type, vals[1], vals[0], vals[2], vals[3], vals[4], vals[5],
@@ -135,10 +147,11 @@ public class DatabaseManager {
     public ParseObject readObject(String objID) {
         ParseObject obj = null;
         try {
-            rs = stmt.executeQuery(String.format("select * from %s where object_id='%s'", TABLENAME, objID));
+            pst_Select.setString(1, objID);
+            rs = pst_Select.executeQuery();
             String[] vals = new String[7];
             for (int i = 1; i <= vals.length; i++) {
-                vals[i] = rs.getString(i);
+                vals[i - 1] = rs.getString(i);
             }
             ParseObject.ParseType type = translateIntToObjectType(rs.getInt(8));
             obj = new ParseObject(type, vals[1], vals[0], vals[2], vals[3], vals[4], vals[5],

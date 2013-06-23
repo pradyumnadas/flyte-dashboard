@@ -31,9 +31,15 @@ public class DownloadServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        ParseDownloadDmps downloadThread = new ParseDownloadDmps(ParseObject.ParseType.FEEDBACK);
-        downloadThread.startDownload();
-        downloadThread.waitForDownloadCompletion();
+        ParseDownloadDmps feedbackDownloadThread = new ParseDownloadDmps(ParseObject.ParseType.FEEDBACK);
+        ParseDownloadDmps queryDownloadThread = new ParseDownloadDmps(ParseObject.ParseType.QUERY);
+        ParseDownloadDmps dumpDownloadThread = new ParseDownloadDmps(ParseObject.ParseType.CRASHDUMP);
+        feedbackDownloadThread.startDownload();
+        queryDownloadThread.startDownload();
+        dumpDownloadThread.startDownload();
+        feedbackDownloadThread.waitForDownloadCompletion();
+        queryDownloadThread.waitForDownloadCompletion();
+        dumpDownloadThread.waitForDownloadCompletion();
         response.sendRedirect("mainpage.jsp");
     }
 

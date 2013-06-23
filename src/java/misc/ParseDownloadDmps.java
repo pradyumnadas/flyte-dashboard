@@ -117,7 +117,10 @@ public class ParseDownloadDmps implements Runnable {
         } catch (IOException e) {
         }
 
-        DatabaseManager.getInstance().saveAllObjects(parseObjs);
+        DatabaseManager manager = DatabaseManager.getInstance();
+        synchronized (manager) {
+            manager.saveAllObjects(parseObjs);
+        }
         setCurrentState(DownloadState.DOWNLOAD_COMPLETED);
     }
 
@@ -152,17 +155,19 @@ public class ParseDownloadDmps implements Runnable {
     }
 
     private void updateLatestObjectTimestamp(LinkedList<ParseObject> parseObjs) {
-        ParseObject latestObj = parseObjs.getFirst();
-        for (ParseObject tmpObj : parseObjs) {
-            if (tmpObj.getCreatedTime().compareTo(latestObj.getCreatedTime()) > 0) {
-                latestObj = tmpObj;
+        if (!parseObjs.isEmpty()) {
+            ParseObject latestObj = parseObjs.getFirst();
+            for (ParseObject tmpObj : parseObjs) {
+                if (tmpObj.getCreatedTime().compareTo(latestObj.getCreatedTime()) > 0) {
+                    latestObj = tmpObj;
+                }
             }
-        }
 
-        String iso8601_date;
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH':'mm':'ss.SSS'Z'");
-        iso8601_date = formatter.format(latestObj.getCreatedTime().getTime());
-        Settings.getInstance().setLatestObjTimeStamp(type, iso8601_date);
+            String iso8601_date;
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH':'mm':'ss.SSS'Z'");
+            iso8601_date = formatter.format(latestObj.getCreatedTime().getTime());
+            Settings.getInstance().setLatestObjTimeStamp(type, iso8601_date);
+        }
     }
 
     private URL createDownloadURL(int skip, String constraints) {
