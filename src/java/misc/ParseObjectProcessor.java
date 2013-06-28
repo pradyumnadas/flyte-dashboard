@@ -45,30 +45,35 @@ public class ParseObjectProcessor {
         BufferedReader stacktraceReader;
         StringBuilder stacktrace = new StringBuilder();
 
+        if (getOSFolderName(targetObj.getOS()) == null) {
+            return "Unknown OS. No Symbol File exists";
+        }
+
         cmdArray[0] = "/home/pradyumnadas/google-breakpad/src/processor/minidump_stackwalk";
         cmdArray[1] = Settings.getInstance().getParseFileDownloadDirectory(targetObj.getType()) + File.separator
                 + targetObj.getName();
         cmdArray[2] = Settings.getInstance().getSymbolFileDirectory() + File.separator
-                + targetObj.getVersion() + File.separator + targetObj.getOS() + File.separator + "symbols";
+                + targetObj.getVersion() + File.separator + getOSFolderName(targetObj.getOS()) + File.separator + "symbols";
         try {
             minidump_stacktwalk = Runtime.getRuntime().exec(cmdArray);
+            stacktraceReader = new BufferedReader(new InputStreamReader(minidump_stacktwalk.getInputStream()));
 
-            if (minidump_stacktwalk.exitValue() == 0) {
-                stacktraceReader = new BufferedReader(new InputStreamReader(minidump_stacktwalk.getInputStream()));
+            String temp;
 
-                String temp;
-
-                do {
-                    temp = stacktraceReader.readLine();
-                    if (temp != null) {
-                        stacktrace.append(temp);
-                        stacktrace.append("\n");
-                    }
-                } while (temp != null);
-
-                stacktraceReader.close();
+            do {
+                temp = stacktraceReader.readLine();
+                if (temp != null) {
+                    stacktrace.append(temp);
+                    stacktrace.append("\n");
+                }
+            } while (temp != null);
+            
+            if(minidump_stacktwalk.waitFor() != 0) {
+                
             }
+            stacktraceReader.close();
         } catch (IOException ex) {
+        } catch (InterruptedException e) {
         }
         return stacktrace.toString();
     }
@@ -128,5 +133,22 @@ public class ParseObjectProcessor {
         }
 
         return outputFiles;
+    }
+
+    private static String getOSFolderName(String os) {
+        String folderName;
+
+        os = os.toLowerCase();
+        if (os.contains("windows")) {
+            folderName = "windows";
+        } else if (os.contains("mac")) {
+            folderName = "mac";
+        } else if (os.contains("linux")) {
+            folderName = "linux";
+        } else {
+            folderName = null;
+        }
+
+        return folderName;
     }
 }

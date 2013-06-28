@@ -52,7 +52,7 @@ public class ParseDownloadDmps implements Runnable {
         classname = Settings.getInstance().getParseObjectClassName(type);
         downloadUrl = String.format("%s/%s/classes/%s", API_BASE_URL, API_VER, classname);
         this.type = type;
-        th = new Thread(this, "DownloadFilesThread");
+        th = new Thread(this);
     }
 
     public void waitForDownloadCompletion() {
@@ -137,7 +137,7 @@ public class ParseDownloadDmps implements Runnable {
             }
 
             try {
-                crashFileos = new FileOutputStream(obj.getFile(), true);
+                crashFileos = new FileOutputStream(obj.getFile());
             } catch (FileNotFoundException ex) {
                 return;
             }

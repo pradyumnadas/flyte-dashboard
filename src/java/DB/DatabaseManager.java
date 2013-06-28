@@ -21,7 +21,7 @@ import misc.Utility;
 
 public class DatabaseManager {
 
-    static DatabaseManager dbm = null;
+    static DatabaseManager dbm = new DatabaseManager();
     Connection connection;
     ResultSet rs;
     final String TABLENAME = "UserData";
@@ -46,9 +46,6 @@ public class DatabaseManager {
     }
 
     public static DatabaseManager getInstance() {
-        if (dbm == null) {
-            dbm = new DatabaseManager();
-        }
         return dbm;
     }
 

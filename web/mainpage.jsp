@@ -29,21 +29,18 @@
             }
             function displayDetails(param) {
                 var e, paramValue;
-                if (param === "objID") {
-                    e = document.getElementById("sel_objID");
-                    paramValue = e.options[e.selectedIndex].value;
-                    var selType = getUrlParameter('type');
-                    window.location = "mainpage.jsp?type=" + selType + "&objID=" + paramValue;
-                } else if (param === "type") {
-                    e = document.getElementById("sel_Type");
-                    paramValue = e.options[e.selectedIndex].value;
-                    window.location = "mainpage.jsp?type=" + paramValue;
-                }
+                e = document.getElementById("sel_Type");
+                paramValue = e.options[e.selectedIndex].value;
+                window.location = "mainpage.jsp?type=" + paramValue;
+            }
+            function showStackTrace(objid) {
+                var typeValue = getUrlParameter('type');
+                window.location = "mainpage.jsp?type=" + typeValue + "&objID=" + objid;
             }
         </script>
 
         <div>
-            <select id="sel_Type" onchange="displayDetails('type')">
+            <select id="sel_Type" onchange="displayDetails()">
                 <option value="none">--Select Type--</option>
                 <option value="feedback">Feedback</option>
                 <option value="bug">Bug</option>
@@ -53,7 +50,13 @@
         </div>
         <div>
             <%! LinkedList<ParseObject> parseObjs;%>
-            <select id="sel_objID" size="10" onchange="displayDetails('objID')">
+            <table>
+                <tr>
+                    <th>UserID</th>
+                    <th>OS</th>
+                    <th>Version</th>
+                    <th>Show stacktrace</th>
+                </tr>
                 <%
                     ParseObject.ParseType type;
                     String param = request.getParameter("type");
@@ -69,11 +72,28 @@
                         }
                         parseObjs = DatabaseManager.getInstance().readAllObjects(type);
                         for (int i = 0; i < parseObjs.size(); i++) {
-                            out.println(String.format("<option value='%s'>%s</option>", parseObjs.get(i).getObjectId(), parseObjs.get(i).toString()));
+                %>
+                <tr>
+                    <td>
+                        <%= parseObjs.get(i).getUserId()%>
+                    </td>
+                    <td>
+                        <%= parseObjs.get(i).getOS()%>
+                    </td>
+                    <td>
+                        <%= parseObjs.get(i).getVersion()%>
+                    </td>
+                    <td>
+                        <button type="button" onclick="showStackTrace('<%= parseObjs.get(i).getObjectId()%>')">
+                            Show
+                        </button>
+                    </td>
+                </tr>
+                <%
                         }
                     }
                 %>
-            </select>
+            </table>
         </div>
         <div>
             <textarea>
@@ -89,8 +109,7 @@
                         } else {
                             description = "";
                         }
-                        description = description.trim();
-                        out.println(description);
+                        out.println(description.trim());
                     }
                 %>
             </textarea>

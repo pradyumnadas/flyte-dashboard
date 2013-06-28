@@ -18,7 +18,7 @@ public class Settings {
     final Properties prop;
     String propFilePath;
     
-    private static Settings instance = null;
+    private static Settings instance = new Settings();
     
     private Settings() {
         prop = new Properties();
@@ -26,9 +26,6 @@ public class Settings {
     }
     
     public static Settings getInstance() {
-        if(instance == null) {
-            instance = new Settings();
-        }
         return instance;
     }
     
